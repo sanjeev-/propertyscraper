@@ -1,0 +1,34 @@
+
+
+Filter Criteria:
+
+home price range
+bed/bath config
+
+school rating 
+low crime
+
+
+
+
+Property Criteria:
+street_address_1
+street_address_2
+city
+state
+zip_code
+
+list_price
+num_bedrooms
+num_bathrooms
+building_area_sq_ft
+
+
+house_canary_avm
+red_bell_ave
+red_bell_ar_bpo
+red_bell_bpo
+
+
+image_url
+other_scrapable_fields
