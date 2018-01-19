@@ -1,0 +1,9 @@
+coldwell banker: can scrape website fairly simply (server-side rendering) but has header checks and a captcha (bot detection)
+
+homes.com : client side rendering. no obvious bot detection as of yet.
+
+estately:
+
+kw: on its face, this site seems very good.  not sure about bot detection.  also not sure how to do searches correctly. 
+
+re/max:
