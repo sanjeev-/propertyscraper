@@ -6,4 +6,7 @@ estately:
 
 kw: on its face, this site seems very good.  not sure about bot detection.  also not sure how to do searches correctly. 
 
-re/max:
+re/max: this one seems the simplest.  no need for selenium.  bs4 can search and parse the website.  one problem is finding a way to search easily (the urls, on first glance, are non obvious).
+
+kw:  selenium can probably work for this, but still some issues.
+

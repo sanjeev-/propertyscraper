@@ -1,0 +1,34 @@
+1516398474412	geckodriver	INFO	Listening on 127.0.0.1:62480
+1516398476466	mozprofile::profile	INFO	Using profile path C:\Users\Sanjeev\AppData\Local\Temp\rust_mozprofile.xcqHaLtFN2vT
+1516398476475	geckodriver::marionette	INFO	Starting browser C:\Program Files (x86)\Mozilla Firefox\firefox.exe with args []
+1516398476484	geckodriver::marionette	INFO	Connecting to Marionette on localhost:62488
+[GFX1]: Potential driver version mismatch ignored due to missing DLLs
+JavaScript error: resource://app/modules/SelfSupportBackend.jsm, line 114: TypeError: this._log is null
+e [[Prototype]] of an object will cause your code to run very slowly; instead create the object with the correct initial [[Prototype]] value using Object.create
+console.warn: Asynchronous operation was aborted as selection changed.
+JavaScript warning: resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/client/shared/vendor/react-redux.js, line 409: mutating the [[Prototype]] of an object will cause your code to run very slowly; instead create the object with the correct initial [[Prototype]] value using Object.create
+DevToolsUtils.dbg_assert is deprecated! Use DevToolsUtils.assert instead!
+dbg_assert@resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/shared/DevToolsUtils.js:466:13
+EventLoop.prototype.enter@resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/server/actors/script.js:357:5
+ThreadActor.prototype._pushThreadPause@resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/server/actors/script.js:543:5
+ThreadActor.prototype.onAttach@resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/server/actors/script.js:657:7
+DSC_onPacket@resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/server/main.js:1643:15
+LocalDebuggerTransport.prototype.send/<@chrome://marionette/content/server.js -> resource://devtools/shared/transport/transport.js:569:11
+makeInfallible/<@resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/shared/DevToolsUtils.js:87:14
+makeInfallible/<@resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/shared/DevToolsUtils.js:87:14
+console.warn: DevToolsUtils.dbg_assert is deprecated! Use DevToolsUtils.assert instead!
+dbg_assert@resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/shared/DevToolsUtils.js:466:13
+EventLoop.prototype.enter@resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/server/actors/script.js:357:5
+ThreadActor.prototype._pushThreadPause@resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/server/actors/script.js:543:5
+ThreadActor.prototype.onAttach@resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/server/actors/script.js:657:7
+DSC_onPacket@resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/server/main.js:1643:15
+LocalDebuggerTransport.prototype.send/<@chrome://marionette/content/server.js -> resource://devtools/shared/transport/transport.js:569:11
+makeInfallible/<@resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/shared/DevToolsUtils.js:87:14
+makeInfallible/<@resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/shared/DevToolsUtils.js:87:14
+
+JavaScript error: http://www.mlsfinder.com/ncsc_cmls/kellerwilliamscharlotte/index.cfm?action=searchresults&searchkey=10638df4-9795-7170-8bfa-a764804c962a&sr=1=1, line 127: TypeError: $(...).css(...) is undefined
+tent/server.js -> resource://devtools/shared/transport/transport.js:569:11
+makeInfallible/<@resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/shared/DevToolsUtils.js:87:14
+makeInfallible/<@resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/shared/DevToolsUtils.js:87:14
+
+JavaScript error: resource://gre/modules/commonjs/toolkit/loader.js -> resource://devtools/client/animationinspector/utils.js, line 82: IndexSizeError: Index or size is negative or greater than the allowed amount
