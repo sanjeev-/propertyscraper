@@ -2,11 +2,8 @@ import os
 import sys
 from bs4 import BeautifulSoup
 from requests import get
-
-
-
-
-
+import requests
+from datetime import datetime, timedelta
 
 
 def findReMaxURLS(soup):
@@ -60,12 +57,12 @@ def pullHomeData(home_url):
     returns: home_dict: dict {
     
             address:{
-    
-                    address_line1: string - street number, street
-                    address_line2: string - optional, apartment number, extra info
-                    state: string - state abbreviation (two letter)
-                    country: string - country str
-                    zipcode: int - five number zipcode
+                    address_line1: [string] - street number, street
+                    unit: [string] - optional, apartment number, extra info
+                    state: [string] - state abbreviation (two letter)
+                    city: [string]
+                    country: [string] - country str
+                    zipcode: [string] - five number zipcode
                     }
                     
             listing_data: {
@@ -104,12 +101,51 @@ def pullHomeData(home_url):
     }       
     
     """
-    address = {}
-    homesoup = BeautifulSoup(get(home_url).text,'html.parser')
-    address['address_line1']  = homesoup.find_all('li',attrs={'hmsitemprop':'Address'})[0].text.strip()
-    address['city']  = homesoup.find_all('li',attrs={'hmsitemprop':'City'})[0].text.strip()
-    address['state']  = homesoup.find_all('li',attrs={'hmsitemprop':'State'})[0].text.strip()
-    address['zipcode']  = homesoup.find_all('li',attrs={'hmsitemprop':'Zip'})[0].text.strip()
+    scrape_address = {}
+    print home_url
+    homesoup = BeautifulSoup(get(home_url,verify=False).text,'html.parser')
+    scrape_address['address_line1']  = homesoup.find_all('li',attrs={'hmsitemprop':'Address'})[0].text.strip()
+    addr = homesoup.find_all('li',attrs={'hmsitemprop':'Address'})[0].text.strip()
+    if '#' in addr:
+        idx = addr.find('#')
+        scrape_address['address_line1'] = str(addr[:idx-1])
+        scrape_address['unit'] = 'Unit '+str(addr[idx+1:])
+    else:
+        scrape_address['address_line1']  = homesoup.find_all('li',attrs={'hmsitemprop':'Address'})[0].text.strip()
+
+
+
+    scrape_address['city']  = homesoup.find_all('li',attrs={'hmsitemprop':'City'})[0].text.strip()
+    scrape_address['state']  = homesoup.find_all('li',attrs={'hmsitemprop':'State'})[0].text.strip()
+    scrape_address['zipcode']  = homesoup.find_all('li',attrs={'hmsitemprop':'Zip'})[0].text.strip()
+    
+    response = canonicalizeAddress(scrape_address)[0]
+    
+    address={}
+    address['address_line1'] = str(response['address_info']['address'])
+    address['city'] = str(response['address_info']['city'])
+    address['zipcode'] = str(response['address_info']['zipcode'])
+    address['state'] = str(response['address_info']['state'])
+    address['unit'] = str(response['address_info']['unit'])
+    address['lat'] = str(response['address_info']['lat'])
+    address['lon'] = str(response['address_info']['lng'])
+    address['slug'] = str(response['address_info']['slug'])
+    print response
+    block_id = response['address_info']['block_id']
+    
+
+    try: 
+        if str(response['address_info']['status']['details'][0])=='Address fully verified':
+            print "verified address with house canary API"
+        else:
+            print 'error for address %s %s %s' % (address['address_line1'],address['city'],address['state'])
+            
+    except:
+        print 'error for address %s %s %s' % (address['address_line1'],address['city'],address['state'])
+
+        
+    
+
     
     listing_data = {}
     listing_data['num_bedrooms'] = int(homesoup.find_all('span',class_='listing-detail-beds-val')[0].text.strip())
@@ -122,30 +158,116 @@ def pullHomeData(home_url):
         features['MLS'] = int(homesoup.find_all('li',attrs={'hmsitemprop':'MLSNumber'})[0].text.strip())
     except:
         features['MLS'] = None
-    features['is_foreclosure'] = str(house_soup.find_all('li',attrs={'hmsitemprop':'IsForeclosure'})[0].text.strip()) == 'True'
+    features['is_foreclosure'] = str(homesoup.find_all('li',attrs={'hmsitemprop':'IsForeclosure'})[0].text.strip()) == 'True'
     try:
         features['desc'] = homesoup.find_all('p',class_="listing-bio")[0].text.strip()
     except:
         features['desc'] = None
-    features['year_built'] = findYearBuilt(homesoup)
+    features['year_built'] = findNestedInfo(homesoup,'Year Built')
     
+    try:
+        school_score = getAverageSchoolRating(homesoup,address['lat'],address['lon'],address['zipcode'])
+    except:
+        school_score = None
     
+    features['school_score'] = school_score
+    try:
+        crime = getCrimeIndex(block_id)
+        features['crime_index_all'] = crime[0]
+        features['crime_index_violent'] = crime[1]
+    except:
+        features['crime_index_all'] = None
+        features['crime_index_violent'] = None
     
+    try:
+        features['floors'] = findNestedInfo(homesoup,'Floors')
+    except:
+        features['floors'] = None
+
+    try:
+        garage = findNestedInfo(homesoup,'Garage')
+        if garage>0:
+            features['garage_detail'] = str(garage)
+            features['has_garage'] = True
+        else:
+            features['garage_detail'] = None
+            features['has_garage'] = False
+    except:
+        features['garage_detail'] = None
+        features['has_garage'] = False
+
+    if findExtraNestedInfo(homesoup,'Sewer') == 'City Sewer':
+        features['has_septic'] = False
+    else:
+        features['has_septic'] = True
+
+    if findExtraNestedInfo(homesoup,'Water') == 'City Water':
+        features['has_well'] = False
+    else:
+        features['has_well'] = True
     
+    if ' pool ' in features['desc']:
+        features['has_pool'] = True
+    else:
+        features['has_pool'] = False
+
+    if features['has_well'] == False and features['has_septic'] == False and features['has_pool'] == False:
+        features['no_pool_well_septic'] = True
+    else:
+        features['no_pool_well_septic'] = False
+
+
+    try:
+        subdiv = findNestedInfo(homesoup,'Subdivision')
+        features['has_established_subdivision'] = True
+        features['subdivision'] = subdiv
+    except:
+        features['has_established_subdivision'] = False
+        features['subdivision'] = None
+    features['listing_status'] = findNestedInfo(homesoup,'Listing Status')
+    try:
+        features['num_full_bath'] = findNestedInfo(homesoup,'Full Bath')
+    except:
+        features['num_full_bath'] = 0
+    try:
+        features['num_half_bath'] = findNestedInfo(homesoup,'Half Bath')
+    except:
+        features['num_half_bath'] = 0
+
+    dos = homesoup.find_all('span',attrs={'title':'DOS'})[0].text.strip()[14:]
     
+    if '<' in dos:
+        features['days_on_site'] = 1
+    else:
+        features['days_on_site'] = int(dos)
+    starting_date = datetime.today() - timedelta(days=int(features['days_on_site']))
+    features['start_date_on_site'] = starting_date.strftime('%Y-%m-%d')
+    try:
+        features['interior_features'] = findExtraNestedInfo(homesoup,'Interior Features')
+    except:
+        features['interior_features'] = None
+    try:
+        features['flooring'] = findExtraNestedInfo(homesoup,'Flooring')
+    except:
+        features['flooring'] = None
+
+
     images={}
-    images['img_urls'] = pullImageURLSFromSlideshow(homesoup)
+    imglist = pullImageURLSFromSlideshow(homesoup)
+    images['img_urls'] = ';'.join(imglist)
     
     home_dict = {}
     home_dict['address'] = address
     home_dict['listing_data'] = listing_data
     home_dict['images'] = images
     home_dict['features'] = features
+
     
     
     
     return home_dict
-
+    
+    
 def getAverageSchoolRating(soup,radius=5):
     """
     this querys the remax API endpoint and 
@@ -255,3 +377,117 @@ def fetchremaxJSON(lat,lon,radius=5):
     return home_stats
     
     
+
+def findNestedInfo(soup,info):
+    """
+    soup: [bs4 soup obj] the soup obj of webpage to scrape
+    
+    returns: [int] year the house was built
+    
+    """
+
+    for idx, noodle in enumerate(soup.find_all('dt',class_='listing-detail-stats-main-key')):
+        if info in noodle.text.strip():
+            data = soup.find_all('dd',class_="listing-detail-stats-main-val")[idx]
+            data= data.text.strip()
+    return data
+
+
+def canonicalizeAddress(remax_address_dict):
+    """
+    this takes a dictionary of address data scraped from the remax website and calls the housecanary API
+    to make sure that all of the data is standardized
+    
+    input
+    
+    remax_address_dict [dict] {
+        address_line1: [string] steet number, street
+        unit: [int] (optional) unit no
+        state: [string] state, two letter abbreviation
+        zipcode: [int] - five number zipcode
+    }
+    
+    returns [dict] of street address info from the house canary API 
+    
+    """
+    hc_key = 'WVXI9291RNJY49L4ZKH5'
+    hc_secret = 'BcsFQhZ9o3Jxjexy7fXjq1G0LusBiQ2r' 
+    if 'unit' in remax_address_dict:
+        params = {
+        
+        'address': remax_address_dict['address_line1'],
+        'state': remax_address_dict['state'],
+        'zipcode': remax_address_dict['zipcode'],
+        'city': remax_address_dict['city'],
+        'unit':remax_address_dict['unit']
+        }
+    else:
+
+        params = {
+            
+            'address': remax_address_dict['address_line1'],
+            'state': remax_address_dict['state'],
+            'zipcode': remax_address_dict['zipcode'],
+            'city': remax_address_dict['city'],
+        }
+    geocode_url = 'https://api.housecanary.com/v2/property/geocode'
+    response = requests.get(geocode_url, params=params, auth=(hc_key, hc_secret))
+    response = response.json()
+    return response
+
+
+def findExtraNestedInfo(soup,info):
+    """
+    soup: [bs4 soup obj] the soup obj of webpage to scrape
+    
+    returns: [int] year the house was built
+    
+    """
+
+    for idx, noodle in enumerate(soup.find_all('dt',class_='listing-detail-stats-more-key')):
+        if info in noodle.text.strip():
+            data = soup.find_all('dd',class_="listing-detail-stats-more-val")[idx]
+            data= data.text.strip()
+    return data
+    
+    
+def flatten_dict(dd, separator='_', prefix=''):
+    return { prefix + separator + k if prefix else k : v
+             for kk, vv in dd.items()
+             for k, v in flatten_dict(vv, separator, kk).items()
+             } if isinstance(dd, dict) else { prefix : dd }
+
+
+def createRemaxCityURL(city,state,page):
+    BASE = 'https://executive3-northcarolina.remax.com/realestatehomesforsale/'
+    return BASE + '-'.join([city,state,'p{0:03d}'.format(page)])+'.html'
+
+
+def getCrimeIndex(block_id):
+    """
+    this takes an address dictionary that has already been validated.
+
+    it returns a crime index, where the property falls on the national crime index
+    """
+
+    hc_key = 'WVXI9291RNJY49L4ZKH5'
+    hc_secret = 'BcsFQhZ9o3Jxjexy7fXjq1G0LusBiQ2r' 
+    params = {
+        
+        'block_id': block_id,
+    }
+
+    crime_url = 'https://api.housecanary.com/v2/block/crime'
+
+    response = requests.get(crime_url,params=params,auth=(hc_key,hc_secret))
+    response = response.json()
+    print response
+    all_crime = response[0]['block/crime']['result']['all']['nation_percentile']
+    violent_crime = response[0]['block/crime']['result']['violent']['nation_percentile']
+    return all_crime,violent_crime
+
+#test_url = 'https://executive1-northcarolina.remax.com/realestatehomesforsale/3225-burkston-road-charlotte-nc-28269-gid400015295520.html'
+
+#test = pullHomeData(test_url)
+
+#print test
