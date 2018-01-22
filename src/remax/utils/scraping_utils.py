@@ -238,7 +238,7 @@ def gradeToScore(gradestr):
     
 def fetchremaxJSON(lat,lon,radius=5):
     API_call_BASE = "https://leadingedge-northcarolina.remax.com/api/homefacts/"
-    API_call = API_call_BASE + '?&radius={}&lat={}&long={}&schoolspergrades=true&zipcode={}'.format(str(radius),str(lat),str(lon),str(zipcode))
+    API_call = API_call_BASE + '?&radius={}&lat={}&long={}&schoolspergrades=true'.format(str(radius),str(lat),str(lon))
     response = get(API_call)
     response.raise_for_status()
     home_stats = response.json()
