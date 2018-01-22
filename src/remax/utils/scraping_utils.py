@@ -237,6 +237,16 @@ def gradeToScore(gradestr):
     return school_score
     
 def fetchremaxJSON(lat,lon,radius=5):
+    """
+    takes a coords and an option radius (mi) and returns a json filled with neighborhood stats.  school stuff, incomes, earthquake frequencies, etc
+    
+    inputs
+    lat: [float] latitude of location you want to search from
+    lon: [float] longitude of location you want to search from
+    radius: [int] (optional) radius from coordinates from which to scrape data
+    
+    """
+    
     API_call_BASE = "https://leadingedge-northcarolina.remax.com/api/homefacts/"
     API_call = API_call_BASE + '?&radius={}&lat={}&long={}&schoolspergrades=true'.format(str(radius),str(lat),str(lon))
     response = get(API_call)
