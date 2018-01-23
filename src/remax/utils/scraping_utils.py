@@ -4,6 +4,8 @@ from bs4 import BeautifulSoup
 from requests import get
 import requests
 from datetime import datetime, timedelta
+import time
+
 
 
 def findReMaxURLS(soup):
@@ -103,7 +105,20 @@ def pullHomeData(home_url):
     """
     scrape_address = {}
     print home_url
-    homesoup = BeautifulSoup(get(home_url,verify=False).text,'html.parser')
+
+    homepage = ''
+    while homepage == '':
+        try:
+            homepage = get(home_url,verify=False)
+        except:
+            print('Connection refused!')
+            print('Let me sleep for 10 seconds')
+            print('Zzzzzzzz.....')
+            time.sleep(10)
+            print('I woke up, now let me try this again.')
+
+
+    homesoup = BeautifulSoup(homepage.text,'html.parser')
     scrape_address['address_line1']  = homesoup.find_all('li',attrs={'hmsitemprop':'Address'})[0].text.strip()
     addr = homesoup.find_all('li',attrs={'hmsitemprop':'Address'})[0].text.strip()
     if '#' in addr:
@@ -119,7 +134,12 @@ def pullHomeData(home_url):
     scrape_address['state']  = homesoup.find_all('li',attrs={'hmsitemprop':'State'})[0].text.strip()
     scrape_address['zipcode']  = homesoup.find_all('li',attrs={'hmsitemprop':'Zip'})[0].text.strip()
     
-    response = canonicalizeAddress(scrape_address)[0]
+    try:
+        response = canonicalizeAddress(scrape_address)[0]
+    except:
+        response = canonicalizeAddress(scrape_address)[0]
+        print(response)
+        print('response has failed')
     
     address={}
     address['address_line1'] = str(response['address_info']['address'])
@@ -130,7 +150,6 @@ def pullHomeData(home_url):
     address['lat'] = str(response['address_info']['lat'])
     address['lon'] = str(response['address_info']['lng'])
     address['slug'] = str(response['address_info']['slug'])
-    print response
     block_id = response['address_info']['block_id']
     
 
@@ -148,11 +167,25 @@ def pullHomeData(home_url):
 
     
     listing_data = {}
-    listing_data['num_bedrooms'] = int(homesoup.find_all('span',class_='listing-detail-beds-val')[0].text.strip())
-    listing_data['num_bathrooms'] = int(homesoup.find_all('span',class_='listing-detail-baths-val')[0].text.strip())
-    listing_data['building_area_sq_ft'] = int(homesoup.find_all('span',class_='listing-detail-sqft-val')[0].text.strip().replace(',',''))
+    try:
+        listing_data['num_bedrooms'] = int(homesoup.find_all('span',class_='listing-detail-beds-val')[0].text.strip())
+    except:
+        listing_data['num_bedrooms'] = None
+    try:
+        listing_data['num_bathrooms'] = int(homesoup.find_all('span',class_='listing-detail-baths-val')[0].text.strip())
+    except:
+        listing_data['num_bathrooms'] = None
+    try:
+        listing_data['building_area_sq_ft'] = int(homesoup.find_all('span',class_='listing-detail-sqft-val')[0].text.strip().replace(',',''))
+    except:
+        listing_data['building_area_sq_ft'] = None
+
     listing_data['list_price'] = int(homesoup.find_all('span',class_='listing-detail-price-amount  pad-half-right')[0].text.strip().replace(',',''))
-    
+    try:
+        listing_data['home_type'] = findNestedInfo(homesoup,'Listing Type')
+    except:
+        listing_data['home_type'] = None
+
     features = {}
     try:
         features['MLS'] = int(homesoup.find_all('li',attrs={'hmsitemprop':'MLSNumber'})[0].text.strip())
@@ -163,21 +196,26 @@ def pullHomeData(home_url):
         features['desc'] = homesoup.find_all('p',class_="listing-bio")[0].text.strip()
     except:
         features['desc'] = None
-    features['year_built'] = findNestedInfo(homesoup,'Year Built')
-    
+    try:
+        features['year_built'] = findNestedInfo(homesoup,'Year Built')
+    except:
+        features['year_built'] = None
+
     try:
         school_score = getAverageSchoolRating(homesoup,address['lat'],address['lon'],address['zipcode'])
     except:
         school_score = None
-    
-    features['school_score'] = school_score
     try:
-        crime = getCrimeIndex(block_id)
-        features['crime_index_all'] = crime[0]
-        features['crime_index_violent'] = crime[1]
+        features['school_score'] = school_score
     except:
-        features['crime_index_all'] = None
-        features['crime_index_violent'] = None
+        features['school_score'] = None
+    #try:
+    #    crime = getCrimeIndex(block_id)
+    #    features['crime_index_all'] = crime[0]
+    #    features['crime_index_violent'] = crime[1]
+    #except:
+    #    features['crime_index_all'] = None
+    #    features['crime_index_violent'] = None
     
     try:
         features['floors'] = findNestedInfo(homesoup,'Floors')
@@ -196,20 +234,28 @@ def pullHomeData(home_url):
         features['garage_detail'] = None
         features['has_garage'] = False
 
-    if findExtraNestedInfo(homesoup,'Sewer') == 'City Sewer':
-        features['has_septic'] = False
-    else:
-        features['has_septic'] = True
+    try:
+        if findExtraNestedInfo(homesoup,'Sewer') == 'City Sewer':
+            features['has_septic'] = False
+        else:
+            features['has_septic'] = True
+    except:
+        features['has_septic'] = None
 
-    if findExtraNestedInfo(homesoup,'Water') == 'City Water':
-        features['has_well'] = False
-    else:
-        features['has_well'] = True
-    
-    if ' pool ' in features['desc']:
-        features['has_pool'] = True
-    else:
-        features['has_pool'] = False
+    try:
+        if findExtraNestedInfo(homesoup,'Water') == 'City Water':
+            features['has_well'] = False
+        else:
+            features['has_well'] = True
+    except:
+        features['has_well'] = None
+    try:
+        if ' pool ' in features['desc']:
+            features['has_pool'] = True
+        else:
+            features['has_pool'] = False
+    except:
+        features['has_pool'] = None
 
     if features['has_well'] == False and features['has_septic'] == False and features['has_pool'] == False:
         features['no_pool_well_septic'] = True
@@ -224,7 +270,11 @@ def pullHomeData(home_url):
     except:
         features['has_established_subdivision'] = False
         features['subdivision'] = None
-    features['listing_status'] = findNestedInfo(homesoup,'Listing Status')
+    try:
+        features['listing_status'] = findNestedInfo(homesoup,'Listing Status')
+    except:
+        features['listing_status'] = None
+
     try:
         features['num_full_bath'] = findNestedInfo(homesoup,'Full Bath')
     except:
@@ -250,12 +300,23 @@ def pullHomeData(home_url):
         features['flooring'] = findExtraNestedInfo(homesoup,'Flooring')
     except:
         features['flooring'] = None
+    try:
+        features['remax_url'] = home_url
+    except:
+        features['remax_url'] = None
 
 
     images={}
+
     imglist = pullImageURLSFromSlideshow(homesoup)
-    images['img_urls'] = ';'.join(imglist)
-    
+    images['img_gallery'] = ';'.join(imglist)
+    try:
+        images['image_header'] = imglist[0]
+    except:
+        images['image_header'] = None
+
+
+
     home_dict = {}
     home_dict['address'] = address
     home_dict['listing_data'] = listing_data
@@ -410,8 +471,11 @@ def canonicalizeAddress(remax_address_dict):
     returns [dict] of street address info from the house canary API 
     
     """
-    hc_key = 'WVXI9291RNJY49L4ZKH5'
-    hc_secret = 'BcsFQhZ9o3Jxjexy7fXjq1G0LusBiQ2r' 
+
+
+
+    hc_key = '9SJCA9DISJVUAVAS4QQQ'
+    hc_secret = '80vGOq9qYEy46a53XsUReFKpyvPK1owG' 
     if 'unit' in remax_address_dict:
         params = {
         
@@ -460,7 +524,9 @@ def flatten_dict(dd, separator='_', prefix=''):
 
 def createRemaxCityURL(city,state,page):
     BASE = 'https://executive3-northcarolina.remax.com/realestatehomesforsale/'
-    return BASE + '-'.join([city,state,'p{0:03d}'.format(page)])+'.html'
+    url = BASE + '-'.join([city,state,'p{0:03d}'.format(page)])+'.html'
+    print(url)
+    return url
 
 
 def getCrimeIndex(block_id):
@@ -470,8 +536,8 @@ def getCrimeIndex(block_id):
     it returns a crime index, where the property falls on the national crime index
     """
 
-    hc_key = 'WVXI9291RNJY49L4ZKH5'
-    hc_secret = 'BcsFQhZ9o3Jxjexy7fXjq1G0LusBiQ2r' 
+    hc_key = '9SJCA9DISJVUAVAS4QQQ'
+    hc_secret = '80vGOq9qYEy46a53XsUReFKpyvPK1owG' 
     params = {
         
         'block_id': block_id,
@@ -481,7 +547,6 @@ def getCrimeIndex(block_id):
 
     response = requests.get(crime_url,params=params,auth=(hc_key,hc_secret))
     response = response.json()
-    print response
     all_crime = response[0]['block/crime']['result']['all']['nation_percentile']
     violent_crime = response[0]['block/crime']['result']['violent']['nation_percentile']
     return all_crime,violent_crime
